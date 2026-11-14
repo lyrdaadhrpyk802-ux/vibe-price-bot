@@ -7,9 +7,9 @@ class VibeBotAdapter:
     def __init__(self, bot):
         self.bot = bot
 
-    async def send_text(self, chat_id, text: str) -> None:
-        await self.bot.send_message(chat_id, text)
+    async def send_text(self, event, text: str) -> None:
+        await event.reply(text)
 
-    async def send_photo(self, chat_id, photo: BytesIO, caption: str = "") -> None:
+    async def send_photo(self, event, photo: BytesIO, caption: str = "") -> None:
         photo.name = "price-card.png"
-        await self.bot.send_file(chat_id, photo, caption=caption)
+        await self.bot.send_file(event.chat_id, photo, caption=caption)

@@ -8,12 +8,16 @@ class BotAdapter:
         self.client = client
         self.bot = bot
 
-    async def on_message(self, chat_id: str, text: str) -> None:
+    async def on_message(self, event, text: str) -> None:
         reply_text, photo = await self.bot.handle_text(text)
         try:
             if photo is not None:
-                await self.client.send_photo(chat_id, photo, caption="نرخ لحظه‌ای بازار")
+                await self.client.send_photo(event, photo, caption="نرخ لحظه‌ای بازار")
             else:
-                await self.client.send_text(chat_id, reply_text)
-        except Exception:
-            logger.exception("send_failed", extra={"chat_id": chat_id})
+                await self.client.send_text(event, reply_text)
+        except Exception as e:
+            logger.exception("send_failed", extra={"chat_id": event.chat_id})
+            try:
+                await event.reply(f"Send Error: {e}")
+            except:
+                pass
