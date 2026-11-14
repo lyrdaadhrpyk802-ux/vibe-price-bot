@@ -27,4 +27,4 @@ jobs:
       - name: Run bot
         env:
           VIBE_BOT_TOKEN: ${{ secrets.VIBE_BOT_TOKEN }}
-        run: python -m app.main
+        run: python bot.py
