@@ -62,5 +62,5 @@ class IranMarketProvider:
             )
 
         if not result:
-            raise ProviderError("Iran Market returned no usable symbols")
+            raise ProviderError(f"Zero usable symbols. Keys: {list(payload.keys()) if isinstance(payload, dict) else type(payload)}")
         return result

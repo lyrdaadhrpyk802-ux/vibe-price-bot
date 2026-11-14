@@ -31,9 +31,9 @@ class PriceBot:
             result = await self.service.get(parsed.asset)
         except AssetNotFound:
             return ("این دارایی در منابع فعلی موجود نیست.", None)
-        except (ProviderError, InvalidPrice):
+        except Exception as e:
             logger.exception("price_fetch_failed")
-            return ("در حال حاضر امکان دریافت قیمت وجود ندارد. کمی بعد تلاش کنید.", None)
+            return (f"خطای دقیق: {str(e)}", None)
 
         total = result.price * parsed.amount
         price_text = f"{total:,.0f}"
