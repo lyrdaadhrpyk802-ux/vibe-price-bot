@@ -42,14 +42,33 @@ def make_price_card(title, price_text, unit, change_pct, values, age_text, sourc
 
     bg_path = ASSETS_DIR / bg_file
     
-    try:
-        bg = Image.open(bg_path).convert("RGB")
-        bg = bg.resize((W, H), Image.Resampling.LANCZOS)
-        bg = bg.filter(ImageFilter.GaussianBlur(15))
-        overlay = Image.new("RGB", (W, H), (0, 0, 0))
-        bg = Image.blend(bg, overlay, 0.5) # Darken background
-    except Exception:
-        bg = Image.new("RGB", (W, H), (30, 41, 59))
+    # Fallback colors based on asset
+    c1, c2 = (30, 41, 59), (15, 23, 42)
+    if "دلار" in title:
+        c1, c2 = (30, 58, 138), (153, 27, 27) # Blue & Red
+    elif "طلا" in title:
+        c1, c2 = (113, 63, 18), (250, 204, 21) # Brown & Gold
+    elif "بیت" in title:
+        c1, c2 = (124, 45, 18), (249, 115, 22) # Dark Orange
+
+    bg = None
+    if bg_path.exists():
+        try:
+            bg = Image.open(bg_path).convert("RGB")
+            bg = bg.resize((W, H), Image.Resampling.LANCZOS)
+            bg = bg.filter(ImageFilter.GaussianBlur(15))
+            overlay = Image.new("RGB", (W, H), (0, 0, 0))
+            bg = Image.blend(bg, overlay, 0.5)
+        except Exception:
+            bg = None
+
+    if bg is None:
+        # Create a beautiful mesh gradient as fallback
+        bg = Image.new("RGB", (W, H), c1)
+        draw_bg = ImageDraw.Draw(bg)
+        draw_bg.ellipse((W//4, -200, W+200, H//2), fill=c2)
+        draw_bg.ellipse((-200, H//2, W//2, H+200), fill=c1)
+        bg = bg.filter(ImageFilter.GaussianBlur(100))
 
     img = bg.convert("RGBA")
     draw = ImageDraw.Draw(img)
