@@ -1,26 +1,28 @@
-from PIL import ImageDraw
+from PIL import Image, ImageDraw
 
-
-def draw_line_chart(
-    draw: ImageDraw.ImageDraw,
-    values: list[float],
-    box: tuple[int, int, int, int],
-    color: tuple[int, int, int] = (45, 210, 130),
-    width: int = 5,
-) -> None:
+def draw_area_chart(draw, values, box, color, fill_color):
     if len(values) < 2:
         return
+
     left, top, right, bottom = box
-    lo, hi = min(values), max(values)
-    if hi == lo:
-        hi = lo + 1
-    span = right - left
+    min_value, max_value = min(values), max(values)
+    if max_value == min_value:
+        max_value += 1
+
     points = []
-    for i, v in enumerate(values):
-        x = left + i * span / (len(values) - 1)
-        y = bottom - (v - lo) / (hi - lo) * (bottom - top)
+    for index, value in enumerate(values):
+        x = left + index * (right - left) / (len(values) - 1)
+        normalized = (value - min_value) / (max_value - min_value)
+        y = bottom - normalized * (bottom - top)
         points.append((int(x), int(y)))
-    draw.line(points, fill=color, width=width, joint="curve")
-    ex, ey = points[-1]
-    r = 6
-    draw.ellipse((ex - r, ey - r, ex + r, ey + r), fill=color)
+
+    # Draw filled area
+    polygon_points = [(left, bottom)] + points + [(right, bottom)]
+    draw.polygon(polygon_points, fill=fill_color)
+
+    # Draw line
+    draw.line(points, fill=color, width=4, joint="curve")
+
+    # Draw last point dot
+    x, y = points[-1]
+    draw.ellipse((x - 6, y - 6, x + 6, y + 6), fill=color)
