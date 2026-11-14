@@ -1,5 +1,4 @@
 import logging
-
 from app.errors import AssetNotFound, InvalidPrice, ProviderError
 from app.nlp.parser import parse_request
 from app.rendering.card import make_price_card
@@ -33,7 +32,7 @@ class PriceBot:
             return ("این دارایی در منابع فعلی موجود نیست.", None)
         except Exception as e:
             logger.exception("price_fetch_failed")
-            return (f"خطای دقیق: {str(e)}", None)
+            return (f"خطا در دریافت قیمت: {str(e)[:50]}", None)
 
         total = result.price * parsed.amount
         price_text = f"{total:,.0f}"
@@ -49,6 +48,13 @@ class PriceBot:
         }
         clean_title = NAMES.get(parsed.asset, result.name_fa)
 
+        sign = "+" if (result.change_pct or 0) >= 0 else ""
+        caption_text = (
+            f"{clean_title} (بازار آزاد): {price_text} {result.currency}\n"
+            f"تغییرات: {sign}{(result.change_pct or 0):.2f}%\n"
+            f"بروزرسانی: {_age_text(result.age_seconds)}"
+        )
+
         try:
             card = make_price_card(
                 title=clean_title,
@@ -60,17 +66,10 @@ class PriceBot:
                 source=result.symbol,
                 is_stale=result.is_stale,
             )
-            return "", card
+            return caption_text, card
         except Exception:
             logger.exception("card_render_failed")
-            stale_line = "\n[داده قدیمی]" if result.is_stale else ""
-            return (
-                f"{result.name_fa}: {price_text} {result.currency}\n"
-                f"تغییرات: {(result.change_pct or 0):+.2f}%\n"
-                f"بروزرسانی: {_age_text(result.age_seconds)}"
-                f"{stale_line}",
-                None,
-            )
+            return caption_text, None
 
 def _age_text(seconds: float) -> str:
     minutes = int(seconds // 60)

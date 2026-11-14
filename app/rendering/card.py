@@ -34,7 +34,7 @@ def make_price_card(title, price_text, unit, change_pct, values, age_text, sourc
     # Determine background image
     bg_file = "default"
     if "دلار" in title or "یورو" in title or "پوند" in title:
-        bg_file = "usd_bg.jpg"
+        bg_file = "usd_bg.png"
     elif "طلا" in title:
         bg_file = "gold_bg.jpg"
     elif "بیت" in title:
@@ -45,12 +45,11 @@ def make_price_card(title, price_text, unit, change_pct, values, age_text, sourc
     try:
         bg = Image.open(bg_path).convert("RGB")
         bg = bg.resize((W, H), Image.Resampling.LANCZOS)
-        bg = bg.filter(ImageFilter.GaussianBlur(15)) # Blur the background
-        # Darken background slightly for contrast
+        bg = bg.filter(ImageFilter.GaussianBlur(15))
         overlay = Image.new("RGB", (W, H), (0, 0, 0))
-        bg = Image.blend(bg, overlay, 0.4)
+        bg = Image.blend(bg, overlay, 0.5) # Darken background
     except Exception:
-        bg = Image.new("RGB", (W, H), (30, 41, 59)) # Fallback dark color
+        bg = Image.new("RGB", (W, H), (30, 41, 59))
 
     img = bg.convert("RGBA")
     draw = ImageDraw.Draw(img)
@@ -59,23 +58,26 @@ def make_price_card(title, price_text, unit, change_pct, values, age_text, sourc
     card_x0, card_y0, card_x1, card_y1 = 60, 60, W - 60, H - 60
     draw.rounded_rectangle((card_x0, card_y0, card_x1, card_y1), radius=40, fill=(255, 255, 255, 255))
 
-    # Fonts
     f_title = _font(FONT_BOLD, 48)
-    f_price = _font(FONT_BOLD, 90)
-    f_unit = _font(FONT_BOLD, 40)
+    f_price = _font(FONT_BOLD, 85)
+    f_unit = _font(FONT_BOLD, 36)
     f_small = _font(FONT_REGULAR, 28)
     f_tiny  = _font(FONT_REGULAR, 20)
 
-    # Title (Top Right)
-    _draw_text(draw, (card_x1 - 60, 100), title, f_title, (30, 41, 59))
+    # Title
+    _draw_text(draw, (card_x1 - 60, 90), title, f_title, (30, 41, 59))
     
-    # IRT Badge (Top Left)
-    draw.rounded_rectangle((card_x0 + 50, 100, card_x0 + 150, 150), radius=25, fill=(240, 240, 240))
-    _draw_text(draw, (card_x0 + 75, 108), "IRT", f_small, (100, 100, 100), direction="ltr", align="left")
+    # IRT Badge
+    draw.rounded_rectangle((card_x0 + 50, 90, card_x0 + 150, 140), radius=25, fill=(240, 240, 240))
+    _draw_text(draw, (card_x0 + 75, 98), "IRT", f_small, (100, 100, 100), direction="ltr", align="left")
 
-    # Price & Unit (Right)
-    _draw_text(draw, (card_x1 - 200, 180), unit, f_unit, (100, 116, 139)) # تومان
-    _draw_text(draw, (card_x1 - 260, 170), price_text, f_price, (15, 23, 42))
+    # Price (Moved IRT to the left of the price to avoid overlap)
+    price_bbox = draw.textbbox((0, 0), price_text, font=f_price, direction="ltr")
+    price_w = price_bbox[2] - price_bbox[0]
+    price_x = card_x1 - 60 - price_w
+    
+    draw.text((price_x, 170), price_text, font=f_price, fill=(15, 23, 42), direction="ltr")
+    _draw_text(draw, (price_x - 20, 215), "تومان", f_unit, (100, 116, 139))
 
     # Percentage Pill
     sign = "+" if change_pct >= 0 else ""
@@ -84,16 +86,15 @@ def make_price_card(title, price_text, unit, change_pct, values, age_text, sourc
     text_color = (22, 101, 52) if change_pct >= 0 else (153, 27, 27)
     arrow = "↑" if change_pct >= 0 else "↓"
 
-    # Calculate pill width based on text
-    bbox_pct = draw.textbbox((0,0), f"{arrow} {pct_text}", font=f_small)
+    bbox_pct = draw.textbbox((0,0), f"{arrow} {pct_text}", font=f_small, direction="ltr")
     pill_w = (bbox_pct[2] - bbox_pct[0]) + 40
     
     badge_x1 = card_x1 - 60
     badge_x0 = badge_x1 - pill_w
-    badge_y0, badge_y1 = 300, 355
+    badge_y0, badge_y1 = 320, 375
     
     draw.rounded_rectangle((badge_x0, badge_y0, badge_x1, badge_y1), radius=25, fill=badge_color)
-    _draw_text(draw, (badge_x0 + 20, badge_y0 + 6), f"{arrow} {pct_text}", f_small, text_color, direction="ltr", align="left")
+    draw.text((badge_x0 + 20, badge_y0 + 8), f"{arrow} {pct_text}", font=f_small, fill=text_color, direction="ltr")
 
     # Chart
     chart_box = (card_x0 + 120, 430, card_x1 - 60, H - 140)
@@ -102,8 +103,8 @@ def make_price_card(title, price_text, unit, change_pct, values, age_text, sourc
     draw_area_chart(draw, values, chart_box, line_color, fill_color, f_tiny)
 
     # Footer
-    _draw_text(draw, (W // 2, H - 90), "@CoinVEX | @Vibe", f_tiny, (150, 150, 150), direction="ltr", align="center")
-    _draw_text(draw, (card_x1 - 60, H - 80), f"بروزرسانی: {age_text}", f_tiny, (150, 150, 150))
+    _draw_text(draw, (W // 2, H - 80), "@CoinVEX | @Vibe", f_tiny, (120, 120, 120), direction="ltr", align="center")
+    _draw_text(draw, (card_x1 - 60, H - 140), f"بروزرسانی: {age_text}", f_tiny, (120, 120, 120))
     
     out = BytesIO()
     out.name = "price-card.png"

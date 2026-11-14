@@ -72,7 +72,7 @@ async def main():
                     
                     if photo is not None:
                         photo.name = "price-card.png"
-                        await bot.send_file(event.chat_id, photo, caption="نرخ لحظه‌ای بازار")
+                        await bot.send_file(event.chat_id, photo, caption=reply_text)
                     else:
                         await event.reply(reply_text)
                         
