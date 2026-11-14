@@ -4,9 +4,8 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 from .chart import draw_line_chart
-from .text import rtl
 
-FONT_DIR = Path("fonts")
+FONT_DIR = Path(__file__).resolve().parent.parent.parent / "fonts"
 FONT_REGULAR = FONT_DIR / "Vazirmatn-Regular.ttf"
 FONT_BOLD = FONT_DIR / "Vazirmatn-Bold.ttf"
 
@@ -18,12 +17,23 @@ def _font(path: Path, size: int) -> ImageFont.FreeTypeFont:
 
 
 def _draw_text_right(draw, xy_right, text, font, fill):
-    rendered = rtl(text)
-    bbox = draw.textbbox((0, 0), rendered, font=font)
-    w = bbox[2] - bbox[0]
-    x = xy_right[0] - w
-    y = xy_right[1]
-    draw.text((x, y), rendered, font=font, fill=fill)
+    try:
+        # Native Pillow RTL support (requires libraqm)
+        bbox = draw.textbbox((0, 0), text, font=font, direction="rtl", language="fa")
+        w = bbox[2] - bbox[0]
+        x = xy_right[0] - w
+        y = xy_right[1]
+        draw.text((x, y), text, font=font, fill=fill, direction="rtl", language="fa")
+    except Exception:
+        # Fallback to manual reshaping if libraqm is not available
+        import arabic_reshaper
+        from bidi.algorithm import get_display
+        rendered = get_display(arabic_reshaper.reshape(text))
+        bbox = draw.textbbox((0, 0), rendered, font=font)
+        w = bbox[2] - bbox[0]
+        x = xy_right[0] - w
+        y = xy_right[1]
+        draw.text((x, y), rendered, font=font, fill=fill)
 
 
 def make_price_card(
@@ -62,8 +72,7 @@ def make_price_card(
 
     change_color = green if change_pct >= 0 else red
     sign = "+" if change_pct >= 0 else ""
-    _draw_text_right(draw, (W - 90, 340),
-                     f"{sign}{change_pct:.2f}%", f_small, change_color)
+    _draw_text_right(draw, (W - 90, 340), f"{sign}{change_pct:.2f}%", f_small, change_color)
 
     if is_stale:
         _draw_text_right(draw, (600, 90), "داده قدیمی", f_tiny, amber)

@@ -80,7 +80,6 @@ async def main():
                     print(f"[bot] error processing: {e}")
                     traceback.print_exc()
                     await event.reply(f"Error: {str(e)[:150]}")
-                    await event.reply(f"Error: {str(e)[:100]}")
 
             print("[bot] listening for messages")
             await bot.run_until_disconnected()
