@@ -16,13 +16,9 @@ def draw_area_chart(draw, values, box, color, fill_color):
         y = bottom - normalized * (bottom - top)
         points.append((int(x), int(y)))
 
-    # Draw filled area
     polygon_points = [(left, bottom)] + points + [(right, bottom)]
     draw.polygon(polygon_points, fill=fill_color)
-
-    # Draw line
     draw.line(points, fill=color, width=4, joint="curve")
 
-    # Draw last point dot
     x, y = points[-1]
     draw.ellipse((x - 6, y - 6, x + 6, y + 6), fill=color)
