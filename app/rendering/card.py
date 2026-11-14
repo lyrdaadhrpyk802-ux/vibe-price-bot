@@ -3,30 +3,26 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageFilter
 from .chart import draw_area_chart
 
-FONT_DIR = Path(__file__).resolve().parent.parent.parent / "fonts"
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+FONT_DIR = BASE_DIR / "fonts"
+ASSETS_DIR = BASE_DIR / "assets"
+
 FONT_REGULAR = FONT_DIR / "Vazirmatn-Regular.ttf"
 FONT_BOLD = FONT_DIR / "Vazirmatn-Bold.ttf"
 
 def _font(path: Path, size: int) -> ImageFont.FreeTypeFont:
-    if path.exists():
-        return ImageFont.truetype(str(path), size)
-    return ImageFont.load_default()
+    return ImageFont.truetype(str(path), size) if path.exists() else ImageFont.load_default()
 
 def _draw_text(draw, xy, text, font, fill, align="right", direction="rtl"):
     try:
-        # Try native Pillow RTL (requires libraqm)
         bbox = draw.textbbox((0, 0), text, font=font, direction=direction, language="fa" if direction=="rtl" else "en")
         w = bbox[2] - bbox[0]
         x = xy[0] - w if align == "right" else xy[0]
         draw.text((x, xy[1]), text, font=font, fill=fill, direction=direction, language="fa" if direction=="rtl" else "en")
     except Exception:
-        # Fallback to manual reshaping
         import arabic_reshaper
         from bidi.algorithm import get_display
-        if direction == "rtl":
-            rendered = get_display(arabic_reshaper.reshape(text))
-        else:
-            rendered = text
+        rendered = get_display(arabic_reshaper.reshape(text)) if direction == "rtl" else text
         bbox = draw.textbbox((0, 0), rendered, font=font)
         w = bbox[2] - bbox[0]
         x = xy[0] - w if align == "right" else xy[0]
@@ -35,68 +31,80 @@ def _draw_text(draw, xy, text, font, fill, align="right", direction="rtl"):
 def make_price_card(title, price_text, unit, change_pct, values, age_text, source, is_stale):
     W, H = 1200, 700
     
-    # Asset specific colors (Background, Line, Fill)
-    colors = {
-        "دلار آمریکا": ((30, 58, 138), (34, 197, 94), (34, 197, 94, 80)),
-        "طلا ۱۸ عیار": ((113, 63, 18), (250, 204, 21), (250, 204, 21, 80)),
-        "بیت کوین": ((124, 45, 18), (249, 115, 22), (249, 115, 22, 80)),
-        "یورو": ((15, 118, 110), (16, 185, 129), (16, 185, 129, 80)),
-        "default": ((30, 41, 59), (56, 189, 248), (56, 189, 248, 80))
-    }
-    bg_color, line_color, fill_color = colors.get(title, colors["default"])
-    
-    if change_pct < 0:
-        line_color = (239, 68, 68) # Red
-        fill_color = (239, 68, 68, 80)
+    # Determine background image
+    bg_file = "default"
+    if "دلار" in title or "یورو" in title or "پوند" in title:
+        bg_file = "usd_bg.jpg"
+    elif "طلا" in title:
+        bg_file = "gold_bg.jpg"
+    elif "بیت" in title:
+        bg_file = "btc_bg.jpg"
 
-    # 1. Base Background with Blur
-    bg = Image.new("RGB", (W, H), bg_color)
-    draw_bg = ImageDraw.Draw(bg)
-    draw_bg.ellipse((W//4, -200, W, H//2), fill=(255, 255, 255, 30))
-    draw_bg.ellipse((-200, H//2, W//2, H), fill=(0, 0, 0, 50))
-    bg = bg.filter(ImageFilter.GaussianBlur(100))
+    bg_path = ASSETS_DIR / bg_file
     
-    # 2. Main Card (White)
-    img = Image.new("RGBA", (W, H))
-    img.paste(bg, (0, 0))
+    try:
+        bg = Image.open(bg_path).convert("RGB")
+        bg = bg.resize((W, H), Image.Resampling.LANCZOS)
+        bg = bg.filter(ImageFilter.GaussianBlur(15)) # Blur the background
+        # Darken background slightly for contrast
+        overlay = Image.new("RGB", (W, H), (0, 0, 0))
+        bg = Image.blend(bg, overlay, 0.4)
+    except Exception:
+        bg = Image.new("RGB", (W, H), (30, 41, 59)) # Fallback dark color
+
+    img = bg.convert("RGBA")
     draw = ImageDraw.Draw(img)
     
+    # White Card
     card_x0, card_y0, card_x1, card_y1 = 60, 60, W - 60, H - 60
     draw.rounded_rectangle((card_x0, card_y0, card_x1, card_y1), radius=40, fill=(255, 255, 255, 255))
 
     # Fonts
-    f_title = _font(FONT_BOLD, 42)
-    f_price = _font(FONT_BOLD, 85)
+    f_title = _font(FONT_BOLD, 48)
+    f_price = _font(FONT_BOLD, 90)
+    f_unit = _font(FONT_BOLD, 40)
     f_small = _font(FONT_REGULAR, 28)
-    f_tiny  = _font(FONT_REGULAR, 22)
+    f_tiny  = _font(FONT_REGULAR, 20)
 
-    # 3. Draw Text (RTL)
-    _draw_text(draw, (card_x1 - 60, 120), title, f_title, (30, 41, 59))
-    _draw_text(draw, (card_x1 - 60, 200), price_text, f_price, (15, 23, 42))
-    _draw_text(draw, (card_x1 - 60, 310), unit, f_small, (100, 116, 139))
+    # Title (Top Right)
+    _draw_text(draw, (card_x1 - 60, 100), title, f_title, (30, 41, 59))
+    
+    # IRT Badge (Top Left)
+    draw.rounded_rectangle((card_x0 + 50, 100, card_x0 + 150, 150), radius=25, fill=(240, 240, 240))
+    _draw_text(draw, (card_x0 + 75, 108), "IRT", f_small, (100, 100, 100), direction="ltr", align="left")
 
-    # 4. Percentage Badge
+    # Price & Unit (Right)
+    _draw_text(draw, (card_x1 - 200, 180), unit, f_unit, (100, 116, 139)) # تومان
+    _draw_text(draw, (card_x1 - 260, 170), price_text, f_price, (15, 23, 42))
+
+    # Percentage Pill
     sign = "+" if change_pct >= 0 else ""
     pct_text = f"{sign}{change_pct:.2f}%"
     badge_color = (220, 252, 231) if change_pct >= 0 else (254, 226, 226)
     text_color = (22, 101, 52) if change_pct >= 0 else (153, 27, 27)
-    arrow = "▲" if change_pct >= 0 else "▼"
+    arrow = "↑" if change_pct >= 0 else "↓"
 
-    badge_x0, badge_y0 = card_x1 - 250, 380
-    badge_x1, badge_y1 = card_x1 - 60, 435
-    draw.rounded_rectangle((badge_x0, badge_y0, badge_x1, badge_y1), radius=20, fill=badge_color)
+    # Calculate pill width based on text
+    bbox_pct = draw.textbbox((0,0), f"{arrow} {pct_text}", font=f_small)
+    pill_w = (bbox_pct[2] - bbox_pct[0]) + 40
     
-    # Draw pct text LTR inside badge
-    _draw_text(draw, (badge_x0 + 20, badge_y0 + 5), f"{arrow} {pct_text}", f_small, text_color, direction="ltr", align="left")
+    badge_x1 = card_x1 - 60
+    badge_x0 = badge_x1 - pill_w
+    badge_y0, badge_y1 = 300, 355
+    
+    draw.rounded_rectangle((badge_x0, badge_y0, badge_x1, badge_y1), radius=25, fill=badge_color)
+    _draw_text(draw, (badge_x0 + 20, badge_y0 + 6), f"{arrow} {pct_text}", f_small, text_color, direction="ltr", align="left")
 
-    # 5. Draw Chart (Bottom Left)
-    chart_box = (120, 480, W - 120, H - 100)
-    draw_area_chart(draw, values, chart_box, line_color, fill_color)
+    # Chart
+    chart_box = (card_x0 + 120, 430, card_x1 - 60, H - 140)
+    line_color = (34, 197, 94) if change_pct >= 0 else (239, 68, 68)
+    fill_color = (34, 197, 94, 50) if change_pct >= 0 else (239, 68, 68, 50)
+    draw_area_chart(draw, values, chart_box, line_color, fill_color, f_tiny)
 
-    # 6. Footer text
-    _draw_text(draw, (W - 120, H - 90), f"بروزرسانی: {age_text}", f_tiny, (100, 116, 139))
-    _draw_text(draw, (120, H - 90), f"منبع: {source.upper()}", f_tiny, (100, 116, 139), direction="ltr", align="left")
-
+    # Footer
+    _draw_text(draw, (W // 2, H - 90), "@CoinVEX | @Vibe", f_tiny, (150, 150, 150), direction="ltr", align="center")
+    _draw_text(draw, (card_x1 - 60, H - 80), f"بروزرسانی: {age_text}", f_tiny, (150, 150, 150))
+    
     out = BytesIO()
     out.name = "price-card.png"
     img.convert("RGB").save(out, format="PNG", optimize=True)
