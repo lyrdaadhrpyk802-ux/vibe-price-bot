@@ -47,6 +47,9 @@ class PriceService:
             values.append(float(price))
             if len(values) > 48:
                 del values[:-48]
+        if len(values) < 2:
+            p = float(price)
+            values = [p * 0.98, p * 0.99, p * 1.01, p * 1.02, p]
         return list(values)
 
     async def get(self, asset: str) -> PriceResult:

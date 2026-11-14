@@ -38,9 +38,20 @@ class PriceBot:
         total = result.price * parsed.amount
         price_text = f"{total:,.0f}"
 
+        NAMES = {
+            "usd": "دلار آمریکا",
+            "eur": "یورو",
+            "gbp": "پوند انگلیس",
+            "aed": "درهم امارات",
+            "gold_18k": "طلا ۱۸ عیار",
+            "btc": "بیت کوین",
+            "eth": "اتریوم"
+        }
+        clean_title = NAMES.get(parsed.asset, result.name_fa)
+
         try:
             card = make_price_card(
-                title=result.name_fa,
+                title=clean_title,
                 price_text=price_text,
                 unit=result.currency,
                 change_pct=result.change_pct or 0.0,
