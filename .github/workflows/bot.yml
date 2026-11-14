@@ -1,17 +1,13 @@
 name: Vibe Price Bot
-
 on:
   schedule:
     - cron: "15 */5 * * *"
   workflow_dispatch:
-
 permissions:
   contents: read
-
 concurrency:
   group: vibe-price-bot
   cancel-in-progress: false
-
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -19,18 +15,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-
       - name: Run bot
         env:
           VIBE_BOT_TOKEN: ${{ secrets.VIBE_BOT_TOKEN }}
