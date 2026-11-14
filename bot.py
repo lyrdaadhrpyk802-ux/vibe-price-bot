@@ -1,6 +1,7 @@
 import asyncio
 import os
 import sys
+import time
 import traceback
 from telethon import events
 from botapi import VibeBot
@@ -12,6 +13,9 @@ from app.providers.coingecko import CoinGeckoProvider
 from app.providers.fallback import FallbackChain
 from app.providers.iran_market import IranMarketProvider
 from app.service import PriceService
+
+LAST_REQUEST = {}
+COOLDOWN_SECONDS = 5
 
 async def main():
     token = os.getenv("VIBE_BOT_TOKEN", "").strip()
@@ -50,6 +54,17 @@ async def main():
                 if text == "/ping":
                     await event.reply("pong")
                     return
+
+                # Anti-spam check
+                user_id = event.sender_id
+                now = time.time()
+                if user_id in LAST_REQUEST:
+                    elapsed = now - LAST_REQUEST[user_id]
+                    if elapsed < COOLDOWN_SECONDS:
+                        remaining = int(COOLDOWN_SECONDS - elapsed)
+                        await event.reply(f"لطفاً {remaining} ثانیه دیگر تلاش کنید.")
+                        return
+                LAST_REQUEST[user_id] = now
 
                 # Group Logic
                 if event.is_group:
