@@ -8,31 +8,32 @@ from app.service import PriceService
 logger = logging.getLogger(__name__)
 
 HELP_TEXT = (
-    "Ask prices like:\n"
-    "- dollar\n- 2.5 dollar\n- bitcoin price\n- gold\n"
-    "Supported: usd, eur, gbp, aed, gold_18k, btc, eth"
+    "دستورات قیمت‌گیری:\n"
+    "- دلار، یورو، پوند، درهم\n"
+    "- 2.5 دلار\n"
+    "- قیمت بیت‌کوین، اتریوم\n"
+    "- طلا"
 )
-
 
 class PriceBot:
     def __init__(self, service: PriceService):
         self.service = service
 
     async def handle_text(self, text: str) -> tuple[str, bytes | None]:
-        if not text or text.strip() in {"/start", "/help", "help"}:
+        if not text or text.strip() in {"/start", "/help", "help", "راهنما"}:
             return HELP_TEXT, None
 
         parsed = parse_request(text)
         if parsed is None:
-            return ("Not understood. " + HELP_TEXT, None)
+            return ("متوجه نشدم. " + HELP_TEXT, None)
 
         try:
             result = await self.service.get(parsed.asset)
         except AssetNotFound:
-            return ("Asset not available in current sources. " + HELP_TEXT, None)
+            return ("این دارایی در منابع فعلی موجود نیست.", None)
         except (ProviderError, InvalidPrice):
             logger.exception("price_fetch_failed")
-            return ("Cannot fetch price right now. Try again later.", None)
+            return ("در حال حاضر امکان دریافت قیمت وجود ندارد. کمی بعد تلاش کنید.", None)
 
         total = result.price * parsed.amount
         price_text = f"{total:,.0f}"
@@ -51,21 +52,20 @@ class PriceBot:
             return "", card
         except Exception:
             logger.exception("card_render_failed")
-            stale_line = "\n[STALE DATA]" if result.is_stale else ""
+            stale_line = "\n[داده قدیمی]" if result.is_stale else ""
             return (
                 f"{result.name_fa}: {price_text} {result.currency}\n"
-                f"Change: {(result.change_pct or 0):+.2f}%\n"
-                f"Updated: {_age_text(result.age_seconds)}"
+                f"تغییرات: {(result.change_pct or 0):+.2f}%\n"
+                f"بروزرسانی: {_age_text(result.age_seconds)}"
                 f"{stale_line}",
                 None,
             )
 
-
 def _age_text(seconds: float) -> str:
     minutes = int(seconds // 60)
     if minutes < 1:
-        return "just now"
+        return "همین الان"
     if minutes < 60:
-        return f"{minutes} min ago"
+        return f"{minutes} دقیقه پیش"
     h, m = divmod(minutes, 60)
-    return f"{h}h {m}m ago"
+    return f"{h} ساعت و {m} دقیقه پیش"
