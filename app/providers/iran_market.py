@@ -1,30 +1,24 @@
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
-
 import httpx
-
 from app.errors import InvalidPrice, ProviderError
 from app.models import AssetPrice
 
-BASE_URL = (
-    "https://raw.githubusercontent.com/iran-market/"
-    "iran-market.github.io/main/data/latest-toman.json"
-)
+# Using the recommended popular.json endpoint
+BASE_URL = "https://raw.githubusercontent.com/iran-market/iran-market.github.io/main/data/popular.json"
 
 WANTED = {
     "USD_IRR_FREE", "EUR_IRR_FREE", "GBP_IRR_FREE", "AED_IRR_FREE",
     "GOLD_18K_IRR",
 }
 
-
 def _extract_items(payload) -> list[dict]:
-    if isinstance(payload, list):
-        return payload
     if isinstance(payload, dict):
         data = payload.get("data", [])
         return data if isinstance(data, list) else []
+    if isinstance(payload, list):
+        return payload
     return []
-
 
 def _to_decimal(raw) -> Decimal:
     try:
@@ -34,7 +28,6 @@ def _to_decimal(raw) -> Decimal:
     if value <= 0 or value > Decimal("1e15"):
         raise InvalidPrice(f"out-of-range price: {value}")
     return value
-
 
 class IranMarketProvider:
     name = "iran-market"
@@ -62,5 +55,5 @@ class IranMarketProvider:
             )
 
         if not result:
-            raise ProviderError(f"Zero usable symbols. Keys: {list(payload.keys()) if isinstance(payload, dict) else type(payload)}")
+            raise ProviderError("Iran Market returned no usable symbols")
         return result
